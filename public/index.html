@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Библиотека</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      padding: 40px 20px;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 28px; font-size: 2rem; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    h2 { margin-bottom: 16px; font-size: 1.2rem; }
+    .form-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .form-group { flex: 1; min-width: 180px; }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      color: #555;
+    }
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    input:focus { outline: none; border-color: #4f46e5; }
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-secondary { background: #e5e7eb; color: #333; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .btn-search { background: #0ea5e9; color: white; }
+    .btn-search:hover { background: #0284c7; }
+    .book-list { display: flex; flex-direction: column; gap: 10px; }
+    .book-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      background: #f9fafb;
+      border-radius: 10px;
+      border: 1px solid #eee;
+    }
+    .book-info h3 { font-size: 1.05rem; margin-bottom: 3px; }
+    .book-info p { color: #666; font-size: 0.9rem; }
+    .book-actions { display: flex; gap: 8px; }
+    .empty { text-align: center; color: #888; padding: 30px; }
+    .message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+      font-size: 0.95rem;
+    }
+    .message.error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+    .message.success {
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    .search-section {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .search-section .form-group { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Библиотека</h1>
+
+    <div class="message" id="message"></div>
+
+    <!-- Поиск -->
+    <div class="card">
+      <h2>Поиск</h2>
+      <div class="search-section">
+        <div class="form-group">
+          <label>Поиск по названию</label>
+          <input type="text" id="search-title" placeholder="Введите название...">
+        </div>
+        <div class="form-group" style="max-width: 160px;">
+          <label>Поиск по ID</label>
+          <input type="number" id="search-id" placeholder="ID">
+        </div>
+        <button class="btn btn-search" onclick="searchByTitle()">Найти по названию</button>
+        <button class="btn btn-search" onclick="searchById()">Найти по ID</button>
+        <button class="btn btn-secondary" onclick="loadBooks()">Сбросить</button>
+      </div>
+    </div>
+
+    <!-- Форма добавления / редактирования -->
+    <div class="card">
+      <h2 id="form-title">Добавить книгу</h2>
+      <form id="book-form">
+        <input type="hidden" id="book-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Название *</label>
+            <input type="text" id="title" required placeholder="Название книги">
+          </div>
+          <div class="form-group">
+            <label>Автор *</label>
+            <input type="text" id="author" required placeholder="Автор">
+          </div>
+          <div class="form-group" style="max-width: 140px;">
+            <label>Год</label>
+            <input type="number" id="year" placeholder="2020">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="submit-btn">Добавить</button>
+        <button type="button" class="btn btn-secondary" id="cancel-btn" style="display:none; margin-left:8px;">Отмена</button>
+      </form>
+    </div>
+
+    <!-- Список книг -->
+    <div class="card">
+      <h2>Список книг <span id="count" style="color:#888; font-weight:normal; font-size:0.9rem;"></span></h2>
+      <div class="book-list" id="books"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:8080/books';
+    let allBooks = [];
+
+    const booksEl = document.getElementById('books');
+    const form = document.getElementById('book-form');
+    const formTitle = document.getElementById('form-title');
+    const submitBtn = document.getElementById('submit-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const messageEl = document.getElementById('message');
+    const countEl = document.getElementById('count');
+
+    function showMessage(text, type = 'error') {
+      messageEl.textContent = text;
+      messageEl.className = 'message ' + type;
+      messageEl.style.display = 'block';
+      setTimeout(() => messageEl.style.display = 'none', 4500);
+    }
+
+    function renderBooks(books) {
+      countEl.textContent = `(${books.length})`;
+
+      if (books.length === 0) {
+        booksEl.innerHTML = '<div class="empty">Книги не найдены</div>';
+        return;
+      }
+
+      booksEl.innerHTML = books.map(book => `
+        <div class="book-item">
+          <div class="book-info">
+            <h3>${escapeHtml(book.title)}</h3>
+            <p>ID: ${book.id} · ${escapeHtml(book.author)}${book.year ? ' · ' + book.year : ''}</p>
+          </div>
+          <div class="book-actions">
+            <button class="btn btn-secondary" onclick='editBook(${JSON.stringify(book)})'>Изменить</button>
+            <button class="btn btn-danger" onclick="deleteBook(${book.id})">Удалить</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Загрузить все книги
+    async function loadBooks() {
+      try {
+        const res = await fetch(API);
+        if (!res.ok) throw new Error('Ошибка сервера');
+        allBooks = await res.json();
+        renderBooks(allBooks);
+        document.getElementById('search-title').value = '';
+        document.getElementById('search-id').value = '';
+      } catch (e) {
+        showMessage('Не удалось загрузить книги. Проверь, запущен ли сервер.');
+      }
+    }
+
+    // Поиск по названию (на клиенте)
+    function searchByTitle() {
+      const query = document.getElementById('search-title').value.trim().toLowerCase();
+      if (!query) {
+        showMessage('Введите название для поиска');
+        return;
+      }
+      const filtered = allBooks.filter(b => b.title.toLowerCase().includes(query));
+      renderBooks(filtered);
+      if (filtered.length === 0) {
+        showMessage('Книги с таким названием не найдены', 'error');
+      }
+    }
+
+    // Поиск по ID (запрос к серверу)
+    async function searchById() {
+      const id = document.getElementById('search-id').value.trim();
+      if (!id) {
+        showMessage('Введите ID');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/${id}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          // Показываем ошибку как в Postman (404 и т.д.)
+          showMessage(data.error || `Ошибка ${res.status}`, 'error');
+          renderBooks([]);
+          return;
+        }
+
+        renderBooks([data]);
+        showMessage(`Найдена книга с ID ${id}`, 'success');
+      } catch (e) {
+        showMessage('Ошибка соединения с сервером');
+      }
+    }
+
+    // Добавление / обновление
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const id = document.getElementById('book-id').value;
+      const title = document.getElementById('title').value.trim();
+      const author = document.getElementById('author').value.trim();
+      const yearVal = document.getElementById('year').value;
+      const year = yearVal ? Number(yearVal) : null;
+
+      if (!title || !author) {
+        showMessage('Поля title и author обязательны');
+        return;
+      }
+
+      const data = { title, author, year };
+
+      try {
+        let res;
+        if (id) {
+          res = await fetch(`${API}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+        } else {
+          res = await fetch(API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+        }
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          showMessage(result.error || `Ошибка ${res.status}`, 'error');
+          return;
+        }
+
+        showMessage(id ? 'Книга обновлена' : 'Книга добавлена', 'success');
+        resetForm();
+        loadBooks();
+      } catch (e) {
+        showMessage('Ошибка соединения с сервером');
+      }
+    });
+
+    function editBook(book) {
+      document.getElementById('book-id').value = book.id;
+      document.getElementById('title').value = book.title;
+      document.getElementById('author').value = book.author;
+      document.getElementById('year').value = book.year || '';
+      formTitle.textContent = 'Редактировать книгу';
+      submitBtn.textContent = 'Сохранить';
+      cancelBtn.style.display = 'inline-block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    cancelBtn.addEventListener('click', resetForm);
+
+    function resetForm() {
+      form.reset();
+      document.getElementById('book-id').value = '';
+      formTitle.textContent = 'Добавить книгу';
+      submitBtn.textContent = 'Добавить';
+      cancelBtn.style.display = 'none';
+    }
+
+    async function deleteBook(id) {
+      if (!confirm('Удалить эту книгу?')) return;
+
+      try {
+        const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showMessage(data.error || `Ошибка ${res.status}`, 'error');
+          return;
+        }
+
+        showMessage('Книга удалена', 'success');
+        loadBooks();
+      } catch (e) {
+        showMessage('Ошибка соединения с сервером');
+      }
+    }
+
+    // Старт
+    loadBooks();
+  </script>
+</body>
+</html>
